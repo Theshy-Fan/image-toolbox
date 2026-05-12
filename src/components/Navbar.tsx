@@ -1,8 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { Image as ImageIcon } from "lucide-react"
+import { Image as ImageIcon, History } from "lucide-react"
 import { ThemeToggle } from "@/components/ThemeToggle"
+import { Button } from "@/components/ui/button"
 
 const navItems = [
   { href: "/compress", label: "图片压缩" },
@@ -31,7 +32,12 @@ export function Navbar() {
             </Link>
           ))}
         </nav>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <Link href="/history">
+            <Button variant="ghost" size="icon">
+              <History className="h-5 w-5" />
+            </Button>
+          </Link>
           <ThemeToggle />
         </div>
       </div>

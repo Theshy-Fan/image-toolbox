@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { FileDown, Download, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,6 +14,7 @@ import {
   type CompressOptions,
   type ProcessResult,
 } from "@/lib/image-processor"
+import { addToHistory } from "@/lib/history"
 import JSZip from "jszip"
 
 interface FileWithResult {
@@ -28,6 +29,24 @@ export default function CompressPage() {
   const [quality, setQuality] = useState(80)
   const [processing, setProcessing] = useState(false)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
+
+  useEffect(() => {
+    const pasteUrl = sessionStorage.getItem("paste_image_url")
+    const pasteName = sessionStorage.getItem("paste_image_name")
+    if (pasteUrl && pasteName) {
+      sessionStorage.removeItem("paste_image_url")
+      sessionStorage.removeItem("paste_image_name")
+      fetch(pasteUrl)
+        .then((res) => res.blob())
+        .then((blob) => {
+          const file = new File([blob], pasteName, { type: blob.type })
+          setFiles([
+            { file, result: null, processing: false, previewUrl: null },
+          ])
+          URL.revokeObjectURL(pasteUrl)
+        })
+    }
+  }, [])
 
   const handleFilesSelected = useCallback((selectedFiles: File[]) => {
     setFiles(
@@ -53,6 +72,14 @@ export default function CompressPage() {
         const result = await compressImage(newFiles[i].file, options)
         newFiles[i].result = result
         newFiles[i].previewUrl = URL.createObjectURL(result.blob)
+
+        addToHistory({
+          filename: newFiles[i].file.name,
+          operation: "压缩",
+          originalSize: newFiles[i].file.size,
+          resultSize: result.size,
+          thumbnailUrl: result.url,
+        })
       } catch (error) {
         console.error("压缩失败:", error)
       }
