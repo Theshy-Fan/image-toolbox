@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ImageToolbox - 免费在线图片处理工具箱
 
-## Getting Started
+一个纯前端的图片处理工具箱，所有处理在浏览器本地完成，保护用户隐私。
 
-First, run the development server:
+## 功能
+
+- **图片压缩** - 压缩图片文件大小，支持 JPEG、PNG、WebP 格式
+- **格式转换** - 在 JPEG、PNG、WebP、AVIF 格式之间自由转换
+- **尺寸调整** - 按比例或自定义尺寸调整图片大小，支持常用平台预设
+
+## 技术栈
+
+- Next.js 14
+- React 18
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+
+## 开始使用
 
 ```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# 构建生产版本
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+访问 http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 项目结构
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/
+│   ├── compress/    # 图片压缩页面
+│   ├── convert/     # 格式转换页面
+│   ├── resize/      # 尺寸调整页面
+│   ├── layout.tsx   # 根布局
+│   └── page.tsx     # 首页
+├── components/
+│   ├── ui/          # shadcn/ui 组件
+│   ├── FileUpload.tsx
+│   ├── Navbar.tsx
+│   ├── ThemeProvider.tsx
+│   └── ThemeToggle.tsx
+└── lib/
+    ├── image-processor.ts  # 图片处理核心逻辑
+    └── utils.ts
+```
 
-## Learn More
+## 特点
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- 隐私优先：所有图片处理在浏览器本地完成
+- 完全免费：无文件大小限制，无使用次数限制
+- 支持批量处理
+- 支持明暗模式
