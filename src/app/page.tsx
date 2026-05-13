@@ -6,6 +6,10 @@ import {
   Maximize,
   Crop,
   Droplets,
+  SlidersHorizontal,
+  Columns,
+  Film,
+  FileCode,
 } from "lucide-react"
 import {
   Card,
@@ -15,7 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-const tools = [
+const basicTools = [
   {
     title: "图片压缩",
     description: "压缩图片文件大小，支持 JPEG、PNG、WebP 格式",
@@ -48,6 +52,33 @@ const tools = [
   },
 ]
 
+const advancedTools = [
+  {
+    title: "图片滤镜",
+    description: "调节亮度、对比度、饱和度，支持多种预设滤镜",
+    href: "/filter",
+    icon: SlidersHorizontal,
+  },
+  {
+    title: "图片拼接",
+    description: "将多张图片拼接成一张，支持横向、纵向和网格布局",
+    href: "/merge",
+    icon: Columns,
+  },
+  {
+    title: "GIF 制作",
+    description: "将多张图片合成为 GIF 动画，支持调节帧率",
+    href: "/gif",
+    icon: Film,
+  },
+  {
+    title: "SVG 优化",
+    description: "压缩 SVG 文件大小，移除无用代码和属性",
+    href: "/svg",
+    icon: FileCode,
+  },
+]
+
 export default function Home() {
   return (
     <div className="container mx-auto px-4 py-16">
@@ -61,24 +92,48 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-        {tools.map((tool) => (
-          <Link key={tool.href} href={tool.href}>
-            <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <tool.icon className="h-8 w-8 text-primary" />
-                  <CardTitle>{tool.title}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-base">
-                  {tool.description}
-                </CardDescription>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+      <div className="max-w-5xl mx-auto">
+        <h2 className="text-2xl font-semibold mb-6">基础工具</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          {basicTools.map((tool) => (
+            <Link key={tool.href} href={tool.href}>
+              <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <tool.icon className="h-8 w-8 text-primary" />
+                    <CardTitle>{tool.title}</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-base">
+                    {tool.description}
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+
+        <h2 className="text-2xl font-semibold mb-6">高级工具</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {advancedTools.map((tool) => (
+            <Link key={tool.href} href={tool.href}>
+              <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <tool.icon className="h-8 w-8 text-primary" />
+                    <CardTitle className="text-base">{tool.title}</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-sm">
+                    {tool.description}
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
       </div>
 
       <div className="mt-16 text-center text-muted-foreground">
