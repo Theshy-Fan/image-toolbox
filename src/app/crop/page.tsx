@@ -16,15 +16,20 @@ const presets = [
   { label: "9:16", ratio: 9 / 16 },
 ]
 
+type HandleDirection = 'nw' | 'n' | 'ne' | 'w' | 'e' | 'sw' | 's' | 'se' | null
+type DragMode = 'create' | 'move' | 'resize' | null
+
 export default function CropPage() {
   const [file, setFile] = useState<File | null>(null)
   const [imageUrl, setImageUrl] = useState<string>("")
   const [selectedPreset, setSelectedPreset] = useState<string>("自由裁剪")
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 0, height: 0 })
-  const [isDragging, setIsDragging] = useState(false)
+  const [dragMode, setDragMode] = useState<DragMode>(null)
+  const [activeHandle, setActiveHandle] = useState<HandleDirection>(null)
+  const [hoverCursor, setHoverCursor] = useState<string>("crosshair")
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const [imageSize, setImageSize] = useState({ width: 0, height: 0 })
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [cropStart, setCropStart] = useState({ x: 0, y: 0, width: 0, height: 0 })
+  const containerRef = useRef<HTMLDivElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
 
   const handleFilesSelected = useCallback((files: File[]) => {
@@ -37,53 +42,194 @@ export default function CropPage() {
     }
   }, [])
 
-  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget
-    setImageSize({ width: img.clientWidth, height: img.clientHeight })
+  const getRelativePosition = (e: React.MouseEvent | MouseEvent) => {
+    if (!imageRef.current) return { x: 0, y: 0 }
+    const rect = imageRef.current.getBoundingClientRect()
+    return {
+      x: Math.max(0, Math.min(e.clientX - rect.left, rect.width)),
+      y: Math.max(0, Math.min(e.clientY - rect.top, rect.height)),
+    }
   }
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    setDragStart({ x, y })
-    setCropArea({ x, y, width: 0, height: 0 })
-    setIsDragging(true)
+  const getHandleAtPosition = (x: number, y: number): HandleDirection => {
+    if (cropArea.width === 0 || cropArea.height === 0) return null
+
+    const handleSize = 12
+    const { x: cx, y: cy, width: cw, height: ch } = cropArea
+
+    // 检查角落手柄
+    if (Math.abs(x - cx) < handleSize && Math.abs(y - cy) < handleSize) return 'nw'
+    if (Math.abs(x - (cx + cw)) < handleSize && Math.abs(y - cy) < handleSize) return 'ne'
+    if (Math.abs(x - cx) < handleSize && Math.abs(y - (cy + ch)) < handleSize) return 'sw'
+    if (Math.abs(x - (cx + cw)) < handleSize && Math.abs(y - (cy + ch)) < handleSize) return 'se'
+
+    // 检查边中点手柄
+    if (Math.abs(x - (cx + cw / 2)) < handleSize && Math.abs(y - cy) < handleSize) return 'n'
+    if (Math.abs(x - (cx + cw / 2)) < handleSize && Math.abs(y - (cy + ch)) < handleSize) return 's'
+    if (Math.abs(x - cx) < handleSize && Math.abs(y - (cy + ch / 2)) < handleSize) return 'w'
+    if (Math.abs(x - (cx + cw)) < handleSize && Math.abs(y - (cy + ch / 2)) < handleSize) return 'e'
+
+    return null
   }
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDragging) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const currentX = Math.max(0, Math.min(e.clientX - rect.left, imageSize.width))
-    const currentY = Math.max(0, Math.min(e.clientY - rect.top, imageSize.height))
+  const isInCropArea = (x: number, y: number): boolean => {
+    if (cropArea.width === 0 || cropArea.height === 0) return false
+    return (
+      x >= cropArea.x &&
+      x <= cropArea.x + cropArea.width &&
+      y >= cropArea.y &&
+      y <= cropArea.y + cropArea.height
+    )
+  }
 
-    let width = currentX - dragStart.x
-    let height = currentY - dragStart.y
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const pos = getRelativePosition(e)
 
-    const selectedRatio = presets.find((p) => p.label === selectedPreset)?.ratio
-
-    if (selectedRatio) {
-      if (Math.abs(width) / selectedRatio > Math.abs(height)) {
-        height = Math.sign(height) * Math.abs(width) / selectedRatio
-      } else {
-        width = Math.sign(width) * Math.abs(height) * selectedRatio
-      }
+    // 检查是否点击在手柄上
+    const handle = getHandleAtPosition(pos.x, pos.y)
+    if (handle) {
+      setDragMode('resize')
+      setActiveHandle(handle)
+      setHoverCursor(`${handle}-resize`)
+      setDragStart(pos)
+      setCropStart({ ...cropArea })
+      return
     }
 
-    setCropArea({
-      x: width > 0 ? dragStart.x : dragStart.x + width,
-      y: height > 0 ? dragStart.y : dragStart.y + height,
-      width: Math.abs(width),
-      height: Math.abs(height),
-    })
+    // 检查是否点击在裁剪区域内
+    if (isInCropArea(pos.x, pos.y)) {
+      setDragMode('move')
+      setHoverCursor('move')
+      setDragStart(pos)
+      setCropStart({ ...cropArea })
+      return
+    }
+
+    // 否则创建新裁剪区域
+    setDragMode('create')
+    setHoverCursor('crosshair')
+    setDragStart(pos)
+    setCropArea({ x: pos.x, y: pos.y, width: 0, height: 0 })
   }
 
-  const handleMouseUp = () => {
-    setIsDragging(false)
+  const handleMouseMove = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const pos = getRelativePosition(e)
+
+    // 更新悬停光标
+    if (!dragMode) {
+      const handle = getHandleAtPosition(pos.x, pos.y)
+      if (handle) {
+        setHoverCursor(`${handle}-resize`)
+      } else if (isInCropArea(pos.x, pos.y)) {
+        setHoverCursor('move')
+      } else {
+        setHoverCursor('crosshair')
+      }
+      return
+    }
+
+    if (dragMode === 'create') {
+      let width = pos.x - dragStart.x
+      let height = pos.y - dragStart.y
+
+      const selectedRatio = presets.find((p) => p.label === selectedPreset)?.ratio
+
+      if (selectedRatio) {
+        if (Math.abs(width) / selectedRatio > Math.abs(height)) {
+          height = Math.sign(height || 1) * Math.abs(width) / selectedRatio
+        } else {
+          width = Math.sign(width || 1) * Math.abs(height) * selectedRatio
+        }
+      }
+
+      setCropArea({
+        x: width >= 0 ? dragStart.x : dragStart.x + width,
+        y: height >= 0 ? dragStart.y : dragStart.y + height,
+        width: Math.abs(width),
+        height: Math.abs(height),
+      })
+    } else if (dragMode === 'move') {
+      const dx = pos.x - dragStart.x
+      const dy = pos.y - dragStart.y
+      setCropArea({
+        x: Math.max(0, cropStart.x + dx),
+        y: Math.max(0, cropStart.y + dy),
+        width: cropStart.width,
+        height: cropStart.height,
+      })
+    } else if (dragMode === 'resize') {
+      const dx = pos.x - dragStart.x
+      const dy = pos.y - dragStart.y
+
+      let newX = cropStart.x
+      let newY = cropStart.y
+      let newWidth = cropStart.width
+      let newHeight = cropStart.height
+
+      if (activeHandle?.includes('w')) {
+        newX = cropStart.x + dx
+        newWidth = cropStart.width - dx
+      }
+      if (activeHandle?.includes('e')) {
+        newWidth = cropStart.width + dx
+      }
+      if (activeHandle?.includes('n')) {
+        newY = cropStart.y + dy
+        newHeight = cropStart.height - dy
+      }
+      if (activeHandle?.includes('s')) {
+        newHeight = cropStart.height + dy
+      }
+
+      // 确保尺寸为正数
+      if (newWidth < 0) {
+        newX = newX + newWidth
+        newWidth = -newWidth
+      }
+      if (newHeight < 0) {
+        newY = newY + newHeight
+        newHeight = -newHeight
+      }
+
+      setCropArea({
+        x: Math.max(0, newX),
+        y: Math.max(0, newY),
+        width: newWidth,
+        height: newHeight,
+      })
+    }
+  }
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setDragMode(null)
+    setActiveHandle(null)
+
+    // 更新悬停光标
+    const pos = getRelativePosition(e)
+    const handle = getHandleAtPosition(pos.x, pos.y)
+    if (handle) {
+      setHoverCursor(`${handle}-resize`)
+    } else if (isInCropArea(pos.x, pos.y)) {
+      setHoverCursor('move')
+    } else {
+      setHoverCursor('crosshair')
+    }
+  }
+
+  const handleMouseLeave = () => {
+    setDragMode(null)
+    setActiveHandle(null)
+    setHoverCursor('crosshair')
   }
 
   const resetCrop = () => {
     setCropArea({ x: 0, y: 0, width: 0, height: 0 })
+    setDragMode(null)
+    setActiveHandle(null)
+    setHoverCursor('crosshair')
   }
 
   const cropImage = async () => {
@@ -163,42 +309,47 @@ export default function CropPage() {
                 </div>
 
                 <div
-                  className="relative inline-block cursor-crosshair"
+                  ref={containerRef}
+                  className="relative inline-block select-none"
+                  style={{ cursor: hoverCursor }}
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
+                  onMouseLeave={handleMouseLeave}
                 >
                   <img
                     ref={imageRef}
                     src={imageUrl}
                     alt="待裁剪图片"
-                    className="max-w-full max-h-[500px] object-contain"
-                    onLoad={handleImageLoad}
+                    className="max-w-full max-h-[500px] object-contain pointer-events-none"
+                    onLoad={() => {
+                      setCropArea({ x: 0, y: 0, width: 0, height: 0 })
+                    }}
+                    draggable={false}
                   />
                   {cropArea.width > 0 && cropArea.height > 0 && (
-                    <>
-                      <div className="absolute inset-0 bg-black/50" />
-                      <div
-                        className="absolute bg-transparent border-2 border-white"
-                        style={{
-                          left: cropArea.x,
-                          top: cropArea.y,
-                          width: cropArea.width,
-                          height: cropArea.height,
-                        }}
-                      />
-                      <div
-                        className="absolute"
-                        style={{
-                          left: cropArea.x,
-                          top: cropArea.y,
-                          width: cropArea.width,
-                          height: cropArea.height,
-                          boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.5)",
-                        }}
-                      />
-                    </>
+                    <div
+                      className="absolute border-2 border-white pointer-events-none"
+                      style={{
+                        left: cropArea.x,
+                        top: cropArea.y,
+                        width: cropArea.width,
+                        height: cropArea.height,
+                        boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.5)",
+                      }}
+                    >
+                      {/* 角落手柄 */}
+                      <div className="absolute -top-1 -left-1 w-3 h-3 bg-white border border-gray-400 cursor-nw-resize" />
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-white border border-gray-400 cursor-ne-resize" />
+                      <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-white border border-gray-400 cursor-sw-resize" />
+                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white border border-gray-400 cursor-se-resize" />
+
+                      {/* 边中点手柄 */}
+                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border border-gray-400 cursor-n-resize" />
+                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border border-gray-400 cursor-s-resize" />
+                      <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-3 h-3 bg-white border border-gray-400 cursor-w-resize" />
+                      <div className="absolute top-1/2 -right-1 -translate-y-1/2 w-3 h-3 bg-white border border-gray-400 cursor-e-resize" />
+                    </div>
                   )}
                 </div>
 
